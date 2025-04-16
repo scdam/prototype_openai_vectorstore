@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
+    <title>Chat met AI</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="chat">
+    <h2>🤖 Chat met AI</h2>
+
+    <button onclick="seed()">🌱 Seed database</button>
+    <button onclick="embed()">📦 Embed data</button>
+
+    <div id="status"></div>
+    <div id="loading" style="display: none;">⏳ AI is aan het typen...</div>
+
+    <div id="messages"></div>
+
+    <input type="text" id="input" placeholder="Typ iets en druk op Enter..." />
+</div>
+
+<script>
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+    const status = document.getElementById('status');
+    const loading = document.getElementById('loading');
+
+    async function seed() {
+        status.textContent = '⏳ Database wordt ge-seed...';
+        try {
+            const res = await fetch('/seed', { method: 'POST' });
+            const data = await res.json();
+            status.textContent = data.message;
+        } catch (err) {
+            status.textContent = '❌ Er ging iets mis met seeden.';
+        }
+    }
+
+    async function embed() {
+        status.textContent = '⏳ Embedding wordt uitgevoerd...';
+        try {
+            const res = await fetch('/embed', { method: 'POST' });
+            const data = await res.json();
+            status.textContent = data.message;
+        } catch (err) {
+            status.textContent = '❌ Er ging iets mis met embedden.';
+        }
+    }
+
+    input.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter' && input.value.trim()) {
+            const text = input.value.trim();
+            input.value = '';
+
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.textContent = `👤 ${text}`;
+            messages.appendChild(userMsg);
+
+            loading.style.display = 'block';
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+
+                const data = await res.json();
+
+                const botMsg = document.createElement('div');
+                botMsg.className = 'message bot';
+                botMsg.textContent = `🤖 ${data.response}`;
+                messages.appendChild(botMsg);
+            } catch (err) {
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'message bot';
+                errorMsg.textContent = '❌ Er ging iets mis met het ophalen van het antwoord.';
+                messages.appendChild(errorMsg);
+            } finally {
+                loading.style.display = 'none';
+                messages.scrollTop = messages.scrollHeight;
+            }
+        }
+    });
+</script>
+</body>
+</html>
