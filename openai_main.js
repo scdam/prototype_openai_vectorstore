@@ -1,145 +1,101 @@
-const axios = require('axios');
-const { MongoClient } = require("mongodb");
-require("dotenv").config();
+require('dotenv').config();
+const fs = require('fs');
+const { OpenAI } = require('openai');
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const EMBEDDING_MODEL = "text-embedding-ada-002";
-const GPT_MODEL = "gpt-4";
-
-async function createEmbedding(text) {
-  const response = await axios.post(
-    "https://api.openai.com/v1/embeddings",
-    {
-      input: text,
-      model: EMBEDDING_MODEL
-    },
-    {
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      }
-    }
-  );
-  return response.data.data[0].embedding;
+// STAP 1: Upload een bestand naar OpenAI
+async function uploadFile(filePath) {
+  const file = fs.createReadStream(filePath);
+  const uploaded = await openai.files.create({
+    file,
+    purpose: 'assistants',
+  });
+  console.log('✅ File geüpload:', uploaded.filename);
+  return uploaded.id;
 }
 
-function cosineSimilarity(vecA, vecB) {
-  const dot = vecA.reduce((acc, val, i) => acc + val * vecB[i], 0);
-  const normA = Math.sqrt(vecA.reduce((acc, val) => acc + val * val, 0));
-  const normB = Math.sqrt(vecB.reduce((acc, val) => acc + val * val, 0));
-  return dot / (normA * normB);
-}
-
-async function embedAndStoreDocuments() {
-  await client.connect();
-  const db = client.db("ApotheekAcademie");
-  const sourceCollection = db.collection("Cursussen");
-  const targetCollection = db.collection("Embeddings");
-
-  const documents = await sourceCollection.find({}).toArray();
-
-  for (const doc of documents) {
-    let textParts = [];
-
-    for (const [key, value] of Object.entries(doc)) {
-      if (key === "_id") continue;
-
-      if (key === "quiz" && Array.isArray(value)) {
-        const quizText = value.map((q, i) => {
-          return `Vraag ${i + 1}: ${q.question}, Opties: ${q.options.join(', ')}, Antwoord: ${q.answer}`;
-        }).join(" | ");
-        textParts.push(`quiz: ${quizText}`);
-      } else {
-        textParts.push(`${key}: ${value}`);
-      }
-    }
-
-    const text = textParts.join(", ");
-
-    const embedding = await createEmbedding(text);
-
-    await targetCollection.insertOne({
-      originalId: doc._id,
-      text,
-      embedding
-    });
+// STAP 2: Maak een vector store
+async function createVectorStore(fileId) {
+  const store = await openai.vectorStores.create({
+    name: 'Chat Vector Store',
+    file_ids: [fileId],
+  });
+  const storeId = 'vs_68027c2314908191a16b7f5c033bb56a'
+  // Wacht tot de file klaar is met indexeren
+  let status = store.status;
+  while (status !== 'completed') {
+    console.log('⏳ Wachten op indexering...');
+    await new Promise((r) => setTimeout(r, 2000));
+    const updated = await openai.vectorStores.retrieve(store.id);
+    status = updated.status;
   }
 
-  console.log("Alle documenten zijn ge-embed en opgeslagen.");
+  console.log('🧠 Vector store klaar:', store.id);
+  console.log(store.id)
+  return store.id;
 }
 
-async function getRelevantContext(query, topK = 3) {
-  await client.connect();
-  const db = client.db("ApotheekAcademie");
-  const collection = db.collection("Embeddings");
+// STAP 3: Start een chat met de vector store (zonder assistant!)
+async function askWithFileSearch(question) {
+// const assistant = await openai.beta.assistants.create({
+  //   name: "Vector Store Assistant",
+  //   instructions: "Gebruik file search om vragen te beantwoorden op basis van de vector store.",
+  //   tools: [{ type: "file_search" }],
+  //   model: "gpt-4-turbo-preview",
+  // });
+  //
+  // const assistantId = assistant.id;
+  //
+  // console.log("🔑 Assistant aangemaakt:", assistantId);
 
-  const queryEmbedding = await createEmbedding(query);
-  const all = await collection.find({}).toArray();
+  const thread = await openai.beta.threads.create();
 
-  const scored = all.map((doc) => ({
-    text: doc.text,
-    score: cosineSimilarity(queryEmbedding, doc.embedding)
-  }));
+  await openai.beta.threads.messages.create(thread.id, {
+    role: 'user',
+    content: question,
+  });
 
-  scored.sort((a, b) => b.score - a.score);
-  const topMatches = scored.slice(0, topK);
-  return topMatches.map((m) => m.text).join("\n---\n");
-}
-
-
-async function callOpenAI(query, context) {
-  try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: GPT_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: `Gebruik de volgende context:\n${context}`
-          },
-          {
-            role: "user",
-            content: query
-          }
-        ],
-        max_tokens: 300
+  const vectorStoreId = "vs_68027c2314908191a16b7f5c033bb56a"
+  const run = await openai.beta.threads.runs.create(thread.id, {
+    assistant_id: "asst_Tn90LiVxYANFIurECdSCTGlY",
+    tool_choice: 'auto',
+    tool_resources: {
+      file_search: {
+        vector_store_ids: [vectorStoreId],
       },
-      {
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-    return response.data.choices[0].message.content;
-  } catch (error) {
-    console.error("Fout bij OpenAI:", error.response?.data || error.message);
-  }
+    },
+    model: 'gpt-4-turbo-preview',
+  });
+
+  let status;
+  do {
+    await new Promise((r) => setTimeout(r, 1500));
+    const current = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+    status = current.status;
+    console.log('⏳ Status:', status);
+  } while (status !== 'completed');
+
+  const messages = await openai.beta.threads.messages.list(thread.id);
+  const last = messages.data.find((msg) => msg.role === 'assistant');
+
+  console.log('\n💬 Antwoord:');
+  console.log(last.content?.[0]?.text?.value || 'Geen antwoord gevonden.');
+  return last.content?.[0]?.text?.value || 'Geen antwoord gevonden';
 }
 
-async function getInputAnswer(input) {
-  const userInput = input
-  if (!userInput) {
-    console.log(" Geef een query op als argument, bijv: node main.js \"Wat is AI?\"");
-    process.exit(1);
+// MAIN
+(async () => {
+  try {
+    // const fileId = await uploadFile('/Users/sophietendam/Stage/prototype_openai_vectorstore/Medicatie_overzicht_cursus.pdf');
+    // const vectorStoreId = await createVectorStore(fileId);
+    const storeID = "vs_68027c2314908191a16b7f5c033bb56a"
+    await askWithFileSearch(storeID, 'Waarvoor wordt Amoxicilline gebruikt?');
+  } catch (e) {
+    console.error('❌ Fout:', e);
   }
-
-
-  console.log(" Vraag:", userInput);
-
-  const context = await getRelevantContext(userInput);
-  console.log(" Relevante context:\n", context);
-
-  const answer = await callOpenAI(userInput, context);
-  console.log("Antwoord van OpenAI:\n", answer);
-
-  await client.close();
-  return answer;
-}
+})();
 
 module.exports = {
-  getInputAnswer,
-  embedAndStoreDocuments
+  askWithFileSearch
 };

@@ -10,9 +10,6 @@
 <div id="chat">
     <h2>🤖 Chat met AI</h2>
 
-    <button onclick="seed()">🌱 Seed database</button>
-    <button onclick="embed()">📦 Embed data</button>
-
     <div id="status"></div>
     <div id="loading" style="display: none;">⏳ AI is aan het typen...</div>
 
@@ -26,28 +23,6 @@
     const messages = document.getElementById('messages');
     const status = document.getElementById('status');
     const loading = document.getElementById('loading');
-
-    async function seed() {
-        status.textContent = '⏳ Database wordt ge-seed...';
-        try {
-            const res = await fetch('/seed', { method: 'POST' });
-            const data = await res.json();
-            status.textContent = data.message;
-        } catch (err) {
-            status.textContent = '❌ Er ging iets mis met seeden.';
-        }
-    }
-
-    async function embed() {
-        status.textContent = '⏳ Embedding wordt uitgevoerd...';
-        try {
-            const res = await fetch('/embed', { method: 'POST' });
-            const data = await res.json();
-            status.textContent = data.message;
-        } catch (err) {
-            status.textContent = '❌ Er ging iets mis met embedden.';
-        }
-    }
 
     input.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter' && input.value.trim()) {
