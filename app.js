@@ -1,9 +1,10 @@
 const express = require('express');
 const path = require('path');
-const { askWithFileSearch } = require('./openai_main');
+const { askWithFileSearchJSON } = require('./openai_main');
+const { askWithFileSearchPDF } = require('./openai_main_PDF');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -19,7 +20,7 @@ app.post('/chat', async (req, res) => {
 
   try {
     console.log(`💬 Gebruiker zegt: ${message}`);
-    const response = await askWithFileSearch(message);
+    const response = await askWithFileSearchJSON(message);
     res.json({ response });
   } catch (error) {
     console.error('❌ Fout bij AI-antwoord:', error);

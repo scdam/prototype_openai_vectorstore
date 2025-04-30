@@ -4,7 +4,6 @@ const { OpenAI } = require('openai');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// STAP 1: Upload een bestand naar OpenAI
 async function uploadFile(filePath) {
   const file = fs.createReadStream(filePath);
   const uploaded = await openai.files.create({
@@ -15,14 +14,12 @@ async function uploadFile(filePath) {
   return uploaded.id;
 }
 
-// STAP 2: Maak een vector store
 async function createVectorStore(fileId) {
   const store = await openai.vectorStores.create({
     name: 'Chat Vector Store',
     file_ids: [fileId],
   });
-  const storeId = 'vs_68027c2314908191a16b7f5c033bb56a'
-  // Wacht tot de file klaar is met indexeren
+
   let status = store.status;
   while (status !== 'completed') {
     console.log('⏳ Wachten op indexering...');
@@ -36,8 +33,8 @@ async function createVectorStore(fileId) {
   return store.id;
 }
 
-// STAP 3: Start een chat met de vector store (zonder assistant!)
-async function askWithFileSearch(question) {
+async function askWithFileSearchJSON(question) {
+  // alleen nodig als er nog geen assistant is
 // const assistant = await openai.beta.assistants.create({
   //   name: "Vector Store Assistant",
   //   instructions: "Gebruik file search om vragen te beantwoorden op basis van de vector store.",
@@ -56,7 +53,10 @@ async function askWithFileSearch(question) {
     content: question,
   });
 
-  const vectorStoreId = "vs_68027c2314908191a16b7f5c033bb56a"
+  // const vectorStoreId = "vs_68027c2314908191a16b7f5c033bb56a" //pdf file
+
+  const vectorStoreId = "vs_6808aedb70fc8191aca36ebb94e22800" // json file
+
   const run = await openai.beta.threads.runs.create(thread.id, {
     assistant_id: "asst_Tn90LiVxYANFIurECdSCTGlY",
     tool_choice: 'auto',
@@ -84,18 +84,19 @@ async function askWithFileSearch(question) {
   return last.content?.[0]?.text?.value || 'Geen antwoord gevonden';
 }
 
-// MAIN
-(async () => {
+
+async function main(){
+  // Alleen nodig als je nieuwe file wilt uploaden en nieuwe vectorstore wilt aanmaken.
   try {
-    // const fileId = await uploadFile('/Users/sophietendam/Stage/prototype_openai_vectorstore/Medicatie_overzicht_cursus.pdf');
-    // const vectorStoreId = await createVectorStore(fileId);
-    const storeID = "vs_68027c2314908191a16b7f5c033bb56a"
-    await askWithFileSearch(storeID, 'Waarvoor wordt Amoxicilline gebruikt?');
+    const fileId = await uploadFile('your-json-file.json');
+    const vectorStoreId = await createVectorStore(fileId);
+    console.log(vectorStoreId);
+    await askWithFileSearchJSON(vectorStoreId, 'Waarvoor wordt Amoxicilline gebruikt?');
   } catch (e) {
     console.error('❌ Fout:', e);
   }
-})();
+}
 
 module.exports = {
-  askWithFileSearch
+  askWithFileSearchJSON
 };
