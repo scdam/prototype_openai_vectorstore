@@ -20,7 +20,7 @@ app.post('/chat', async (req, res) => {
 
   try {
     console.log(`💬 Gebruiker zegt: ${message}`);
-    const response = await askWithFileSearchJSON(message);
+    const response = await askWithFileSearchPDF(message);
     res.json({ response });
   } catch (error) {
     console.error('❌ Fout bij AI-antwoord:', error);

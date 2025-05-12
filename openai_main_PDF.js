@@ -35,14 +35,11 @@ async function createVectorStore(fileId) {
 
 async function askWithFileSearchPDF(question) {
     const thread = await openai.beta.threads.create();
-
     await openai.beta.threads.messages.create(thread.id, {
         role: 'user',
         content: question,
     });
-
     const vectorStoreId = "vs_68027c2314908191a16b7f5c033bb56a" //pdf file
-
     const run = await openai.beta.threads.runs.create(thread.id, {
         assistant_id: "asst_Tn90LiVxYANFIurECdSCTGlY",
         tool_choice: 'auto',
@@ -53,7 +50,6 @@ async function askWithFileSearchPDF(question) {
         },
         model: 'gpt-4-turbo-preview',
     });
-
     let status;
     do {
         await new Promise((r) => setTimeout(r, 1500));
@@ -61,10 +57,8 @@ async function askWithFileSearchPDF(question) {
         status = current.status;
         console.log('⏳ Status:', status);
     } while (status !== 'completed');
-
     const messages = await openai.beta.threads.messages.list(thread.id);
     const last = messages.data.find((msg) => msg.role === 'assistant');
-
     console.log('\n💬 Antwoord:');
     console.log(last.content?.[0]?.text?.value || 'Geen antwoord gevonden.');
     return last.content?.[0]?.text?.value || 'Geen antwoord gevonden';
