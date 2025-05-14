@@ -46,6 +46,7 @@ async function askWithFileSearchRealJSON(question) {
 
   console.log("🔑 Assistant aangemaakt:", assistantId);
 
+
   const thread = await openai.beta.threads.create();
   await openai.beta.threads.messages.create(thread.id, {
     role: 'user',
