@@ -3,7 +3,7 @@ const path = require('path');
 
 // Pad naar input/output bestanden
 const inputPath = path.join(__dirname, 'lesson.json');
-const outputPath = path.join(__dirname, 'lessen_content8.json');
+const outputPath = path.join(__dirname, 'course_content.json');
 
 // Laad originele JSON-bestand
 const originalData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));

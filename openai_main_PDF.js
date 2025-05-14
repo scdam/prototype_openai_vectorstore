@@ -58,10 +58,16 @@ async function askWithFileSearchPDF(question) {
         console.log('⏳ Status:', status);
     } while (status !== 'completed');
     const messages = await openai.beta.threads.messages.list(thread.id);
-    const last = messages.data.find((msg) => msg.role === 'assistant');
+    const lastMessage = messages.data.find((msg) => msg.role === 'assistant');
+
+    const fullText = lastMessage.content
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text.value)
+        .join("\n\n");
+
     console.log('\n💬 Antwoord:');
-    console.log(last.content?.[0]?.text?.value || 'Geen antwoord gevonden.');
-    return last.content?.[0]?.text?.value || 'Geen antwoord gevonden';
+    console.log(fullText);
+    return fullText;
 }
 
 

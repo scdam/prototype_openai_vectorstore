@@ -33,16 +33,16 @@ async function createVectorStore(fileId) {
   return store.id;
 }
 
-async function askWithFileSearchJSON(question) {
-  // alleen nodig als er nog geen assistant is
-const assistant = await openai.beta.assistants.create({
-    name: "Vector Store Assistant",
-    instructions: "Gebruik file search om vragen te beantwoorden op basis van de vector store.",
-    tools: [{ type: "file_search" }],
-    model: "gpt-4-turbo-preview",
-  });
+async function askWithFileSearchRealJSON(question) {
+//   // alleen nodig als er nog geen assistant is
+// const assistant = await openai.beta.assistants.create({
+//     name: "Vector Store Assistant",
+//     instructions: "Gebruik file search om vragen te beantwoorden op basis van de vector store.",
+//     tools: [{ type: "file_search" }],
+//     model: "gpt-4-turbo-preview",
+//   });
 
-  const assistantId = assistant.id;
+  const assistantId = 'asst_eSW8Ym10ithR9w53NIcO7Dbw';
 
   console.log("🔑 Assistant aangemaakt:", assistantId);
 
@@ -51,7 +51,8 @@ const assistant = await openai.beta.assistants.create({
     role: 'user',
     content: question,
   });
-  const vectorStoreId = "vs_6808aedb70fc8191aca36ebb94e22800" // json file
+
+  const vectorStoreId = "vs_6821e77c738c8191983536ed39f16ba1" // json file
   const run = await openai.beta.threads.runs.create(thread.id, {
     assistant_id: "asst_Tn90LiVxYANFIurECdSCTGlY",
     tool_choice: 'auto',
@@ -71,6 +72,7 @@ const assistant = await openai.beta.assistants.create({
   } while (status !== 'completed');
 
   const messages = await openai.beta.threads.messages.list(thread.id);
+
   const lastMessage = messages.data.find((msg) => msg.role === 'assistant');
 
   const fullText = lastMessage.content
@@ -87,15 +89,15 @@ const assistant = await openai.beta.assistants.create({
 async function main(input){
   // Alleen nodig als je nieuwe file wilt uploaden en nieuwe vectorstore wilt aanmaken.
   try {
-    const fileId = await uploadFile('your-json-file.json');
+    const fileId = await uploadFile('course_content.json');
     const vectorStoreId = await createVectorStore(fileId);
     console.log(vectorStoreId);
-    await askWithFileSearchJSON(vectorStoreId, input);
+    await askWithFileSearchRealJSON(vectorStoreId, input);
   } catch (e) {
     console.error('❌ Fout:', e);
   }
 }
 
 module.exports = {
-  askWithFileSearchJSON
+  askWithFileSearchRealJSON
 };

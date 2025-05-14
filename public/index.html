@@ -47,7 +47,28 @@
 
                 const botMsg = document.createElement('div');
                 botMsg.className = 'message bot';
-                botMsg.textContent = `🤖 ${data.response}`;
+
+                // Format het antwoord: vervang nieuwe regels en nummering
+                const formatted = data.response
+                    // Markdown: **vetgedrukt**
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    // Markdown: _cursief_ of *cursief*
+                    .replace(/_(.*?)_/g, '<em>$1</em>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    // Markdown: ## kopjes (H2)
+                    .replace(/^## (.*)$/gm, '<h2>$1</h2>')
+                    // Markdown: # kopjes (H1)
+                    .replace(/^# (.*)$/gm, '<h1>$1</h1>')
+                    // Markdown: genummerde lijsten (1. item)
+                    .replace(/(\d+)\.\s/g, '<br><strong>$1.</strong> ')
+                    // Markdown: bullets (- item of * item)
+                    .replace(/^- (.*)$/gm, '<br>• $1')
+                    .replace(/^\* (.*)$/gm, '<br>• $1')
+                    // Nieuwe regels: dubbele → witregel
+                    .replace(/\n{2,}/g, '<br><br>')
+                    // Nieuwe regels: enkel → line break
+                    .replace(/\n/g, '<br>');
+                botMsg.innerHTML = `🤖 ${formatted}`;
                 messages.appendChild(botMsg);
             } catch (err) {
                 const errorMsg = document.createElement('div');

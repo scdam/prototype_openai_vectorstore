@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const { askWithFileSearchJSON } = require('./openai_main');
 const { askWithFileSearchPDF } = require('./openai_main_PDF');
+const { askWithFileSearchRealJSON } = require('./openai_main_real_json');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,7 +21,7 @@ app.post('/chat', async (req, res) => {
 
   try {
     console.log(`💬 Gebruiker zegt: ${message}`);
-    const response = await askWithFileSearchPDF(message);
+    const response = await askWithFileSearchRealJSON(message);
     res.json({ response });
   } catch (error) {
     console.error('❌ Fout bij AI-antwoord:', error);
